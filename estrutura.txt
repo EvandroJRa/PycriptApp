@@ -1,0 +1,19 @@
+encrypt_app/
+│
+├── main.py                   # Arquivo principal que inicia o app
+├── controllers/
+│   ├── file_controller.py    # Lida com as operações de criptografia e descriptografia
+│   ├── permission_manager.py # Lida com permissões (Android, por exemplo)
+│
+├── models/
+│   ├── encryption_model.py   # Contém a lógica de geração e manipulação de chaves
+│
+├── views/
+│   ├── main_view.kv          # Interface gráfica (arquivo KV)
+│   ├── view_manager.py       # Gerencia as transições de tela
+│
+├── utils/
+│   ├── helpers.py            # Funções utilitárias comuns
+│
+└── assets/                   # Recursos (ícones, imagens, etc.)
+    ├── icon.png

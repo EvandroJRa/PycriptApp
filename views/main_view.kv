@@ -1,0 +1,27 @@
+BoxLayout:
+    orientation: "vertical"
+
+    Label:
+        text: "Senha para criptografia:"
+        size_hint: (1, 0.1)
+
+    TextInput:
+        id: password_input
+        password: True
+        multiline: False
+        size_hint: (1, 0.1)
+
+    FileChooserIconView:
+        id: file_chooser
+        filters: ["*.*"]
+        size_hint: (1, 0.7)
+
+    Button:
+        text: "Criptografar"
+        size_hint: (1, 0.1)
+        on_press: app.root.encrypt_file(file_chooser.selection, password_input.text)
+
+    Button:
+        text: "Descriptografar"
+        size_hint: (1, 0.1)
+        on_press: app.root.decrypt_file(file_chooser.selection, password_input.text)
