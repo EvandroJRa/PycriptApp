@@ -1,3 +1,9 @@
+import sys
+import os
+
+# Adicionar caminho do projeto ao sys.path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from kivy.uix.boxlayout import BoxLayout
 from controllers.file_controller import FileController
 
@@ -29,3 +35,5 @@ class ViewManager(BoxLayout):
             print("Arquivo descriptografado com sucesso!")
         except Exception as e:
             print(f"Erro ao descriptografar: {e}")
+
+
