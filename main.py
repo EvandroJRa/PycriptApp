@@ -5,12 +5,13 @@ from kivy.app import App
 # Adiciona o caminho base ao sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Imports ajustados
-from views.view_manager import ViewManager  # Use ViewManager para gerenciar as telas
+# Importa o novo layout principal
+from file_ExplorerApp import FileExplorerApp
 
 class EncryptApp(App):
     def build(self):
-        return ViewManager()  # Define o layout principal
+        # Define o layout principal como FileExplorerApp
+        return FileExplorerApp()
 
 if __name__ == "__main__":
     print("Caminhos de busca do Python:")
