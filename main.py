@@ -1,6 +1,10 @@
 import sys
+print("Caminhos de busca do Python:")
+print(sys.path)
+
 import os
 
+# Adiciona o caminho base ao sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
