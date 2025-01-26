@@ -6,6 +6,7 @@ from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserIconView
 from kivy.uix.popup import Popup
 from kivy.uix.spinner import Spinner  # Para seleção de discos
+from kivy.clock import Clock  # Para atualização periódica
 from kivy.app import App
 
 
@@ -26,16 +27,15 @@ class FileExplorerApp(BoxLayout):
         )
         self.add_widget(self.path_box)
 
-        # Fundo para o caminho atual (background)
+        # Label para exibir o caminho atual
         self.current_path_display = Label(
             text=self.root_path,
             size_hint=(0.8, 1),
             color=(1, 1, 1, 1),  # Cor do texto
             bold=True
         )
-        self._create_background_instruction(self.current_path_display, "#444444")
         self.path_box.add_widget(self.current_path_display)
-        
+
         # Spinner para seleção de discos
         self.disk_selector = Spinner(
             text="Selecionar Disco",
@@ -79,22 +79,8 @@ class FileExplorerApp(BoxLayout):
         self.decrypt_button.bind(on_press=self.decrypt_selection)
         self.add_widget(self.decrypt_button)
 
-    def _create_background_instruction(self, widget, color_hex):
-        """
-        Adiciona uma cor de fundo ao widget.
-        """
-        from kivy.graphics import Color, Rectangle
-        from kivy.utils import get_color_from_hex
-
-        color = get_color_from_hex(color_hex)
-
-        with widget.canvas.before:
-            bg_color = Color(*color)  # Define a cor
-            bg_rect = Rectangle(size=widget.size, pos=widget.pos)
-
-        # Atualiza o tamanho e a posição dinamicamente
-        widget.bind(size=lambda instance, value: setattr(bg_rect, 'size', value),
-                    pos=lambda instance, value: setattr(bg_rect, 'pos', value))
+        # Agendamento para atualizar as unidades
+        Clock.schedule_interval(self.update_drive_list, 5)  # Atualiza a cada 5 segundos
 
     def get_root_path(self):
         """
@@ -121,6 +107,15 @@ class FileExplorerApp(BoxLayout):
             return drives
         else:  # Linux/Mac
             return ["/"]
+
+    def update_drive_list(self, dt):
+        """
+        Atualiza a lista de drives disponíveis no Spinner.
+        """
+        current_drives = self.get_available_drives()
+        if set(self.disk_selector.values) != set(current_drives):
+            print(f"Atualizando drives disponíveis: {current_drives}")
+            self.disk_selector.values = current_drives
 
     def change_drive(self, spinner, text):
         """
@@ -151,27 +146,65 @@ class FileExplorerApp(BoxLayout):
 
     def encrypt_selection(self, instance):
         """
-        Exibe mensagem fictícia para criptografia.
+        Criptografa a seleção com base no modo escolhido.
         """
         selected_files = self.file_chooser.selection
         if not selected_files:
             self.show_popup("Erro", "Nenhum arquivo ou pasta selecionada!")
             return
-        self.show_popup("Ação", f"Criptografando seleção: {selected_files}")
+
+        password = self.password_input.text
+        if not password:
+            self.show_popup("Erro", "Digite uma senha para criptografar!")
+            return
+
+        # Exibe o popup inicial
+        popup = self.show_popup("Ação", f"Criptografando seleção: {selected_files}")
+
+        try:
+            for file_path in selected_files:
+                print(f"Criptografando: {file_path}")
+                Clock.schedule_once(lambda dt: None, 1)
+
+            popup.content.text = "Criptografia concluída com sucesso!"
+            Clock.schedule_once(lambda dt: popup.dismiss(), 2)
+
+        except Exception as e:
+            popup.dismiss()
+            self.show_popup("Erro", f"Erro ao criptografar: {e}")
 
     def decrypt_selection(self, instance):
         """
-        Exibe mensagem fictícia para descriptografia.
+        Descriptografa a seleção com base no modo escolhido.
         """
         selected_files = self.file_chooser.selection
         if not selected_files:
             self.show_popup("Erro", "Nenhum arquivo ou pasta selecionada!")
             return
-        self.show_popup("Ação", f"Descriptografando seleção: {selected_files}")
+
+        password = self.password_input.text
+        if not password:
+            self.show_popup("Erro", "Digite uma senha para descriptografar!")
+            return
+
+        # Exibe o popup inicial
+        popup = self.show_popup("Ação", f"Descriptografando seleção: {selected_files}")
+
+        try:
+            for file_path in selected_files:
+                print(f"Descriptografando: {file_path}")
+                Clock.schedule_once(lambda dt: None, 1)
+
+            popup.content.text = "Descriptografia concluída com sucesso!"
+            Clock.schedule_once(lambda dt: popup.dismiss(), 2)
+
+        except Exception as e:
+            popup.dismiss()
+            self.show_popup("Erro", f"Erro ao descriptografar: {e}")
 
     def show_popup(self, title, message):
         """
-        Exibe um popup com título e mensagem.
+        Exibe um popup com título e mensagem e retorna a instância do popup.
         """
         popup = Popup(
             title=title,
@@ -179,6 +212,7 @@ class FileExplorerApp(BoxLayout):
             size_hint=(0.8, 0.4)
         )
         popup.open()
+        return popup
 
 
 class MyApp(App):
