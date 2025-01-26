@@ -1,44 +1,109 @@
-import hashlib
+import os
 import base64
-from cryptography.fernet import Fernet
+import hashlib
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.padding import PKCS7
+from cryptography.hazmat.primitives.hmac import HMAC
+from cryptography.hazmat.primitives.kdf.concatkdf import ConcatKDFHash
+from os import urandom
+
 
 class FileController:
-    def generate_key(self, password):
-        """
-        Gera uma chave Fernet válida baseada em uma senha.
-        """
-        # Gera um hash SHA-256 a partir da senha
-        key = hashlib.sha256(password.encode()).digest()
+    ENCRYPTION_SIGNATURE = b"ENCRYPTED"
 
-        # Converte o hash em uma string base64 de 32 bytes
-        return base64.urlsafe_b64encode(key[:32])
+    def __init__(self):
+        print("Inicializando FileController...")
 
-    def encrypt(self, file_path, password):
+    def derive_key(self, password: str, salt: bytes, length=32) -> bytes:
         """
-        Criptografa um arquivo com base em uma senha.
+        Deriva uma chave criptográfica a partir de uma senha e um salt.
+        """
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=length,
+            salt=salt,
+            iterations=100000,
+            backend=default_backend()
+        )
+        return kdf.derive(password.encode())
+
+    def encrypt(self, file_path: str, password: str):
+        """
+        Criptografa um arquivo e o salva com a extensão .enc.
         """
         try:
-            fernet = Fernet(self.generate_key(password))
-            with open(file_path, "rb") as file:
-                data = file.read()
-            encrypted_data = fernet.encrypt(data)
-            with open(file_path, "wb") as file:
-                file.write(encrypted_data)
-            print(f"Arquivo '{file_path}' criptografado com sucesso!")
-        except Exception as e:
-            print(f"Erro ao criptografar o arquivo: {e}")
+            # Gera o salt e IV
+            salt = os.urandom(16)
+            iv = os.urandom(16)
 
-    def decrypt(self, file_path, password):
+            # Deriva a chave de criptografia
+            key = self.derive_key(password, salt)
+
+            # Lê o conteúdo do arquivo
+            with open(file_path, 'rb') as f:
+                plaintext = f.read()
+
+            # Criptografa o conteúdo
+            cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+            encryptor = cipher.encryptor()
+            ciphertext = encryptor.update(plaintext) + encryptor.finalize()
+
+            # Cria o arquivo criptografado
+            encrypted_path = f"{file_path}.enc"
+            with open(encrypted_path, 'wb') as f:
+                f.write(self.ENCRYPTION_SIGNATURE + salt + iv + ciphertext)
+
+            print(f"Arquivo '{file_path}' criptografado como '{encrypted_path}'.")
+
+            # Remove o arquivo original
+            os.remove(file_path)
+            print(f"Arquivo original '{file_path}' excluído.")
+
+        except Exception as e:
+            print(f"Erro ao criptografar: {e}")
+            raise
+
+    def decrypt(self, file_path: str, password: str):
         """
-        Descriptografa um arquivo com base em uma senha.
+        Descriptografa um arquivo criptografado e o restaura ao estado original.
         """
         try:
-            fernet = Fernet(self.generate_key(password))
-            with open(file_path, "rb") as file:
-                encrypted_data = file.read()
-            data = fernet.decrypt(encrypted_data)
-            with open(file_path, "wb") as file:
-                file.write(data)
-            print(f"Arquivo '{file_path}' descriptografado com sucesso!")
+            # Lê o conteúdo do arquivo criptografado
+            with open(file_path, 'rb') as f:
+                data = f.read()
+
+            # Verifica a assinatura
+            if not data.startswith(self.ENCRYPTION_SIGNATURE):
+                raise Exception(f"O arquivo '{file_path}' não está criptografado!")
+
+            # Extrai salt, IV e ciphertext
+            salt = data[len(self.ENCRYPTION_SIGNATURE):len(self.ENCRYPTION_SIGNATURE) + 16]
+            iv = data[len(self.ENCRYPTION_SIGNATURE) + 16:len(self.ENCRYPTION_SIGNATURE) + 32]
+            ciphertext = data[len(self.ENCRYPTION_SIGNATURE) + 32:]
+
+            # Deriva a chave de descriptografia
+            key = self.derive_key(password, salt)
+
+            # Descriptografa o conteúdo
+            cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
+            decryptor = cipher.decryptor()
+            plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+
+            # Cria o arquivo descriptografado
+            decrypted_path = file_path.replace(".enc", "")
+            with open(decrypted_path, 'wb') as f:
+                f.write(plaintext)
+
+            print(f"Arquivo '{file_path}' descriptografado como '{decrypted_path}'.")
+
+            # Remove o arquivo criptografado
+            os.remove(file_path)
+            print(f"Arquivo criptografado '{file_path}' excluído.")
+
         except Exception as e:
-            print(f"Erro ao descriptografar o arquivo: {e}")
+            print(f"Erro ao descriptografar: {e}")
+            raise

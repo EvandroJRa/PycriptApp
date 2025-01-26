@@ -1,6 +1,4 @@
-from kivy.app import App
-from controllers.file_controller import FileController  # Classe que gerencia a criptografia
-from kivy.clock import Clock
+import os
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
@@ -8,38 +6,28 @@ from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserIconView
 from kivy.uix.popup import Popup
 from kivy.uix.spinner import Spinner
-import os
+from kivy.clock import Clock
+from controllers.file_controller import FileController  # Classe responsável pela criptografia
+from kivy.app import App
 
 
 class FileExplorerApp(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', padding=10, spacing=10, **kwargs)
-
-        self.controller = FileController()  # Instância da classe de controle
-
-        # Define a pasta raiz do sistema operacional
+        self.controller = FileController()  # Classe de controle para criptografia
         self.root_path = self.get_root_path()
 
-        # Layout para exibir o caminho atual
-        self.path_box = BoxLayout(
-            orientation='horizontal',
-            size_hint=(1, None),
-            height=50,
-            padding=5,
-            spacing=5
-        )
+        # Layout para exibir caminho atual
+        self.path_box = BoxLayout(orientation='horizontal', size_hint=(1, None), height=50, padding=5, spacing=5)
         self.add_widget(self.path_box)
 
-        # Label para exibir o caminho atual
+        # Exibição do caminho atual
         self.current_path_display = Label(
-            text=self.root_path,
-            size_hint=(0.8, 1),
-            color=(1, 1, 1, 1),
-            bold=True
+            text=self.root_path, size_hint=(0.8, 1), color=(1, 1, 1, 1), bold=True
         )
         self.path_box.add_widget(self.current_path_display)
 
-        # Spinner para seleção de discos
+        # Spinner para unidades de disco
         self.disk_selector = Spinner(
             text="Selecionar Disco",
             values=self.get_available_drives(),
@@ -48,22 +36,16 @@ class FileExplorerApp(BoxLayout):
         self.disk_selector.bind(text=self.change_drive)
         self.path_box.add_widget(self.disk_selector)
 
-        # FileChooser para seleção de arquivos/pastas
+        # FileChooser para seleção de arquivos e pastas
         self.file_chooser = FileChooserIconView(
-            path=self.root_path,
-            show_hidden=True,
-            size_hint=(1, 0.7),
-            dirselect=False,
-            multiselect=True
+            path=self.root_path, show_hidden=True, size_hint=(1, 0.6), dirselect=False, multiselect=True
         )
         self.file_chooser.bind(path=self.update_current_path)
         self.add_widget(self.file_chooser)
 
-        # Botão para alternar entre modos
+        # Alternar entre seleção de arquivos ou pastas
         self.toggle_mode_button = Button(
-            text="Modo: Seleção de Arquivos",
-            size_hint=(1, None),
-            height=50
+            text="Modo: Seleção de Arquivos", size_hint=(1, None), height=50
         )
         self.toggle_mode_button.bind(on_press=self.toggle_mode)
         self.add_widget(self.toggle_mode_button)
@@ -73,7 +55,7 @@ class FileExplorerApp(BoxLayout):
         self.password_input = TextInput(password=True, multiline=False, size_hint=(1, None), height=40)
         self.add_widget(self.password_input)
 
-        # Botões para criptografar e descriptografar
+        # Botões de ação
         self.encrypt_button = Button(text="Criptografar Seleção", size_hint=(1, None), height=50)
         self.encrypt_button.bind(on_press=self.encrypt_selection)
         self.add_widget(self.encrypt_button)
@@ -82,12 +64,12 @@ class FileExplorerApp(BoxLayout):
         self.decrypt_button.bind(on_press=self.decrypt_selection)
         self.add_widget(self.decrypt_button)
 
-        # Agendamento para atualizar as unidades
+        # Atualização periódica de unidades de disco
         Clock.schedule_interval(self.update_drive_list, 5)
 
     def get_root_path(self):
         """
-        Retorna a pasta raiz do sistema operacional.
+        Retorna a pasta raiz do sistema.
         """
         if os.name == 'nt':  # Windows
             return "C:/"
@@ -147,13 +129,13 @@ class FileExplorerApp(BoxLayout):
 
     def encrypt_selection(self, instance):
         """
-        Criptografa a seleção de arquivos ou pastas.
+        Criptografa os arquivos selecionados e atualiza a tela.
         """
         selected_files = self.file_chooser.selection
         password = self.password_input.text
 
         if not selected_files:
-            self.show_popup("Erro", "Nenhum arquivo ou pasta selecionada!")
+            self.show_popup("Erro", "Nenhum arquivo selecionado!")
             return
 
         if not password:
@@ -162,20 +144,28 @@ class FileExplorerApp(BoxLayout):
 
         try:
             for file_path in selected_files:
-                self.controller.encrypt(file_path, password)  # Chama a classe de controle
-            self.show_popup("Sucesso", "Arquivos criptografados com sucesso!")
+                try:
+                    self.controller.encrypt(file_path, password)
+                    self.show_popup("Sucesso", f"Arquivo '{file_path}' criptografado com sucesso!")
+                except Exception as e:
+                    self.show_popup("Aviso", f"Erro ao criptografar '{file_path}': {e}")
+
+            # Atualiza o FileChooser
+            self.file_chooser.path = self.file_chooser.path
+
         except Exception as e:
-            self.show_popup("Erro", f"Erro ao criptografar: {e}")
+            self.show_popup("Erro", f"Erro ao processar os arquivos: {e}")
+
 
     def decrypt_selection(self, instance):
         """
-        Descriptografa a seleção de arquivos ou pastas.
+        Descriptografa os arquivos selecionados e atualiza a tela.
         """
         selected_files = self.file_chooser.selection
         password = self.password_input.text
 
         if not selected_files:
-            self.show_popup("Erro", "Nenhum arquivo ou pasta selecionada!")
+            self.show_popup("Erro", "Nenhum arquivo selecionado!")
             return
 
         if not password:
@@ -184,10 +174,19 @@ class FileExplorerApp(BoxLayout):
 
         try:
             for file_path in selected_files:
-                self.controller.decrypt(file_path, password)  # Chama a classe de controle
-            self.show_popup("Sucesso", "Arquivos descriptografados com sucesso!")
+                try:
+                    self.controller.decrypt(file_path, password)
+                    self.show_popup("Sucesso", f"Arquivo '{file_path}' descriptografado com sucesso!")
+                except Exception as e:
+                    self.show_popup("Aviso", f"Erro ao descriptografar '{file_path}': {e}")
+
+            # Atualiza o FileChooser
+            self.file_chooser.path = self.file_chooser.path
+
         except Exception as e:
-            self.show_popup("Erro", f"Erro ao descriptografar: {e}")
+            self.show_popup("Erro", f"Erro ao processar os arquivos: {e}")
+
+
 
     def show_popup(self, title, message):
         """
@@ -199,7 +198,6 @@ class FileExplorerApp(BoxLayout):
             size_hint=(0.8, 0.4)
         )
         popup.open()
-        return popup
 
 
 class MyApp(App):
