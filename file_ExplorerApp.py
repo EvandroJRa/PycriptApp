@@ -5,6 +5,7 @@ from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserIconView
 from kivy.uix.popup import Popup
+from kivy.uix.spinner import Spinner  # Para seleção de discos
 from kivy.app import App
 
 
@@ -16,28 +17,39 @@ class FileExplorerApp(BoxLayout):
         self.root_path = self.get_root_path()
 
         # Layout para exibir o caminho atual
-        self.path_box = BoxLayout(orientation='horizontal', size_hint=(1, None), height=40)
-        self.add_widget(self.path_box)  # Adiciona o BoxLayout no topo
-
-        # Label para "Caminho Atual:"
-        self.path_label = Label(
-            text="Caminho Atual:",
-            size_hint=(0.2, 1)
+        self.path_box = BoxLayout(
+            orientation='horizontal',
+            size_hint=(1, None),
+            height=50,
+            padding=5,
+            spacing=5
         )
-        self.path_box.add_widget(self.path_label)
+        self.add_widget(self.path_box)
 
-        # Campo para exibir o caminho atual
+        # Fundo para o caminho atual (background)
         self.current_path_display = Label(
             text=self.root_path,
-            size_hint=(0.8, 1)  # Ocupa 80% do espaço horizontal
+            size_hint=(0.8, 1),
+            color=(1, 1, 1, 1),  # Cor do texto
+            bold=True
         )
+        self._create_background_instruction(self.current_path_display, "#444444")
         self.path_box.add_widget(self.current_path_display)
+        
+        # Spinner para seleção de discos
+        self.disk_selector = Spinner(
+            text="Selecionar Disco",
+            values=self.get_available_drives(),
+            size_hint=(0.2, 1)
+        )
+        self.disk_selector.bind(text=self.change_drive)
+        self.path_box.add_widget(self.disk_selector)
 
         # FileChooser para seleção de arquivos/pastas
         self.file_chooser = FileChooserIconView(
             path=self.root_path,
             show_hidden=True,
-            size_hint=(1, 0.7),  # Ocupa 70% da altura total
+            size_hint=(1, 0.7),
             dirselect=False,
             multiselect=True
         )
@@ -67,6 +79,23 @@ class FileExplorerApp(BoxLayout):
         self.decrypt_button.bind(on_press=self.decrypt_selection)
         self.add_widget(self.decrypt_button)
 
+    def _create_background_instruction(self, widget, color_hex):
+        """
+        Adiciona uma cor de fundo ao widget.
+        """
+        from kivy.graphics import Color, Rectangle
+        from kivy.utils import get_color_from_hex
+
+        color = get_color_from_hex(color_hex)
+
+        with widget.canvas.before:
+            bg_color = Color(*color)  # Define a cor
+            bg_rect = Rectangle(size=widget.size, pos=widget.pos)
+
+        # Atualiza o tamanho e a posição dinamicamente
+        widget.bind(size=lambda instance, value: setattr(bg_rect, 'size', value),
+                    pos=lambda instance, value: setattr(bg_rect, 'pos', value))
+
     def get_root_path(self):
         """
         Retorna a pasta raiz do sistema operacional.
@@ -75,6 +104,31 @@ class FileExplorerApp(BoxLayout):
             return "C:/"
         else:  # Linux/Mac
             return "/"
+
+    def get_available_drives(self):
+        """
+        Retorna os discos disponíveis no sistema.
+        """
+        if os.name == 'nt':  # Windows
+            import string
+            from ctypes import windll
+            drives = []
+            bitmask = windll.kernel32.GetLogicalDrives()
+            for letter in string.ascii_uppercase:
+                if bitmask & 1:
+                    drives.append(f"{letter}:/")
+                bitmask >>= 1
+            return drives
+        else:  # Linux/Mac
+            return ["/"]
+
+    def change_drive(self, spinner, text):
+        """
+        Altera o drive atual no FileChooser.
+        """
+        if os.path.exists(text):
+            self.file_chooser.path = text
+            self.update_current_path(None)
 
     def update_current_path(self, instance, value=None):
         """
