@@ -1,20 +1,24 @@
 import hashlib
+import base64
 from cryptography.fernet import Fernet
 
 class FileController:
     def generate_key(self, password):
         """
-        Gera uma chave Fernet baseada em uma senha usando SHA-256.
+        Gera uma chave Fernet válida baseada em uma senha.
         """
+        # Gera um hash SHA-256 a partir da senha
         key = hashlib.sha256(password.encode()).digest()
-        return Fernet(key)
+
+        # Converte o hash em uma string base64 de 32 bytes
+        return base64.urlsafe_b64encode(key[:32])
 
     def encrypt(self, file_path, password):
         """
         Criptografa um arquivo com base em uma senha.
         """
         try:
-            fernet = self.generate_key(password)
+            fernet = Fernet(self.generate_key(password))
             with open(file_path, "rb") as file:
                 data = file.read()
             encrypted_data = fernet.encrypt(data)
@@ -29,7 +33,7 @@ class FileController:
         Descriptografa um arquivo com base em uma senha.
         """
         try:
-            fernet = self.generate_key(password)
+            fernet = Fernet(self.generate_key(password))
             with open(file_path, "rb") as file:
                 encrypted_data = file.read()
             data = fernet.decrypt(encrypted_data)
