@@ -1,18 +1,21 @@
-import os
+from kivy.app import App
+from controllers.file_controller import FileController  # Classe que gerencia a criptografia
+from kivy.clock import Clock
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserIconView
 from kivy.uix.popup import Popup
-from kivy.uix.spinner import Spinner  # Para seleção de discos
-from kivy.clock import Clock  # Para atualização periódica
-from kivy.app import App
+from kivy.uix.spinner import Spinner
+import os
 
 
 class FileExplorerApp(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(orientation='vertical', padding=10, spacing=10, **kwargs)
+
+        self.controller = FileController()  # Instância da classe de controle
 
         # Define a pasta raiz do sistema operacional
         self.root_path = self.get_root_path()
@@ -31,7 +34,7 @@ class FileExplorerApp(BoxLayout):
         self.current_path_display = Label(
             text=self.root_path,
             size_hint=(0.8, 1),
-            color=(1, 1, 1, 1),  # Cor do texto
+            color=(1, 1, 1, 1),
             bold=True
         )
         self.path_box.add_widget(self.current_path_display)
@@ -80,7 +83,7 @@ class FileExplorerApp(BoxLayout):
         self.add_widget(self.decrypt_button)
 
         # Agendamento para atualizar as unidades
-        Clock.schedule_interval(self.update_drive_list, 5)  # Atualiza a cada 5 segundos
+        Clock.schedule_interval(self.update_drive_list, 5)
 
     def get_root_path(self):
         """
@@ -114,7 +117,6 @@ class FileExplorerApp(BoxLayout):
         """
         current_drives = self.get_available_drives()
         if set(self.disk_selector.values) != set(current_drives):
-            print(f"Atualizando drives disponíveis: {current_drives}")
             self.disk_selector.values = current_drives
 
     def change_drive(self, spinner, text):
@@ -130,7 +132,6 @@ class FileExplorerApp(BoxLayout):
         Atualiza o campo exibindo o caminho atual.
         """
         current_path = self.file_chooser.path
-        print(f"Atualizando caminho no display: {current_path}")  # Depuração
         self.current_path_display.text = current_path
 
     def toggle_mode(self, instance):
@@ -146,65 +147,51 @@ class FileExplorerApp(BoxLayout):
 
     def encrypt_selection(self, instance):
         """
-        Criptografa a seleção com base no modo escolhido.
+        Criptografa a seleção de arquivos ou pastas.
         """
         selected_files = self.file_chooser.selection
+        password = self.password_input.text
+
         if not selected_files:
             self.show_popup("Erro", "Nenhum arquivo ou pasta selecionada!")
             return
 
-        password = self.password_input.text
         if not password:
             self.show_popup("Erro", "Digite uma senha para criptografar!")
             return
 
-        # Exibe o popup inicial
-        popup = self.show_popup("Ação", f"Criptografando seleção: {selected_files}")
-
         try:
             for file_path in selected_files:
-                print(f"Criptografando: {file_path}")
-                Clock.schedule_once(lambda dt: None, 1)
-
-            popup.content.text = "Criptografia concluída com sucesso!"
-            Clock.schedule_once(lambda dt: popup.dismiss(), 2)
-
+                self.controller.encrypt(file_path, password)  # Chama a classe de controle
+            self.show_popup("Sucesso", "Arquivos criptografados com sucesso!")
         except Exception as e:
-            popup.dismiss()
             self.show_popup("Erro", f"Erro ao criptografar: {e}")
 
     def decrypt_selection(self, instance):
         """
-        Descriptografa a seleção com base no modo escolhido.
+        Descriptografa a seleção de arquivos ou pastas.
         """
         selected_files = self.file_chooser.selection
+        password = self.password_input.text
+
         if not selected_files:
             self.show_popup("Erro", "Nenhum arquivo ou pasta selecionada!")
             return
 
-        password = self.password_input.text
         if not password:
             self.show_popup("Erro", "Digite uma senha para descriptografar!")
             return
 
-        # Exibe o popup inicial
-        popup = self.show_popup("Ação", f"Descriptografando seleção: {selected_files}")
-
         try:
             for file_path in selected_files:
-                print(f"Descriptografando: {file_path}")
-                Clock.schedule_once(lambda dt: None, 1)
-
-            popup.content.text = "Descriptografia concluída com sucesso!"
-            Clock.schedule_once(lambda dt: popup.dismiss(), 2)
-
+                self.controller.decrypt(file_path, password)  # Chama a classe de controle
+            self.show_popup("Sucesso", "Arquivos descriptografados com sucesso!")
         except Exception as e:
-            popup.dismiss()
             self.show_popup("Erro", f"Erro ao descriptografar: {e}")
 
     def show_popup(self, title, message):
         """
-        Exibe um popup com título e mensagem e retorna a instância do popup.
+        Exibe um popup com título e mensagem.
         """
         popup = Popup(
             title=title,
